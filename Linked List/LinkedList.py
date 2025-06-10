@@ -1,69 +1,101 @@
 from __future__ import annotations
 
-# https://docs.python.org/3/tutorial/errors.html#user-defined-exceptions
-# Want to define our own custom Exception class...
+######################################################################
 class EmptyError(Exception):
+    ''' class to represent an empty list exception '''
     def __init__(self, message: str) -> None:
+        super().__init__(message)
         self.message = message
 
+######################################################################
 class Node[T]:
-    ''' class to implement a single node object in a singly-linked
-        linked list '''
-    __slots__ = ('data', 'next')
-
+    ''' class to represent a node in a doubly-linked list '''
     def __init__(self, data: T):
-        self.data: T       = data
-        self.next: Node[T] = None  # can point to another Node object
+        self.data: T      = data
+        self.prev: Node[T] = None  # pointer to the previous Node in the list
+        self.next: Node[T] = None  # pointer to the next Node in the list
 
+######################################################################
 class LinkedList[T]:
-    ''' class to implement a singly-linked linked list '''
+    ''' class to implement a doubly-linked list '''
+    __slots__ = ('_head', '_tail', '_size')
 
     def __init__(self) -> None:
-        self._head: Node[T] = None   # head pointer: variable w/ addy of Node object
-        self._tail: Node[T] = None   # tail pointer: variable w/ addy of Node object
-        self._size: int     = 0
+        self._head: Node[T] = None   # head pointer: contains addy of one Node object
+        self._tail: Node[T] = None   # tail pointer: contains addy of one Node object
+        self._size: int     = 0      # number of entries in the list
 
     def __len__(self) -> int:
+        ''' returns the number of entries in the linked list
+        Returns:
+            integer valued number of list entries
+        '''
         return self._size
 
-    def appendLeft(self, item: T) -> None:
-        ''' append the given T-type data item as part of a new Node to the left
-            side of the linked list
-        Parameters:
-            item: a type T data item to be included as the data in the inserted Node
+    def front(self) -> T:
+        ''' method to return the data item at the front of the list without
+            removing that node
         Returns:
-            nothing
+            the T-valued item at the front of the list
+        Raises:
+            EmptyError if the list is empty
         '''
-        new_node = Node(item)
-        new_node.next = self._head
-        self._head = new_node
+        if self._head is None:
+            raise EmptyError('Linked List is empty')
+        return self._head.data
 
-        if self._size == 0:
-            self._tail = new_node
-        self._size += 1
+    def back(self) -> T:
+        ''' method to return the data item at the end of the list without
+            removing that node
+        Returns:
+            the T-valued item at the end of the list
+        Raises:
+            EmptyError if the list is empty
+        '''
+        if self._tail is None:
+            raise EmptyError('Linked List is empty')
+        return self._tail.data
 
-    def appendRight(self, item: T) -> None:
-        ''' appends the given T-type data item as part of a new Node to the right 
+    def appendLeft(self, item: T) -> None:
+        ''' adds the given T-type data item as part of a new Node to the left
             of the linked list
         Parameters:
             item: a type T data item to be included as the data in the inserted Node
-        Returns:
-            nothing
+        Raises:
+            TypeError if non-empty list and item type does not match list entry types
         '''
-        # remember to reset the tail pointer, and, when appropriate, 
-        # the head pointer
+        if self._head is not None and not isinstance(item, type(self._head.data)):
+            raise TypeError('Cannot append a different datatype to what is already in the list')
         
-        new_node = Node(item)  # construct a new node object
-        
-        if self._size == 0:
-            # appending to an empty list
+        new_node = Node(item)
+        if self._head is None:
             self._head = new_node
-            self._tail = new_node  # or self._tail = self._head
+            self._tail = new_node
         else:
-            # appending to a non-empty list
-            self._tail.next = new_node
-            self._tail      = new_node
+            new_node.next = self._head
+            self._head.prev = new_node
+            self._head = new_node
+        self._size += 1
 
+    def appendRight(self, item: T) -> None:
+        ''' adds the given T-type data item as part of a new Node to the right 
+            of the linked list
+        Parameters:
+            item: a type T data item to be included as the data in the inserted Node
+        Raises:
+            TypeError if non-empty list and item type does not match list entry types
+        '''
+        if self._head is not None and not isinstance(item, type(self._head.data)):
+            raise TypeError('Cannot append a different datatype to what is already in the list')
+        
+        new_node = Node(item)
+        if self._head is None:
+            self._head = new_node
+            self._tail = new_node
+        else:
+            self._tail.next = new_node
+            new_node.prev = self._tail
+            self._tail = new_node
         self._size += 1
 
     def popLeft(self) -> T:
@@ -74,25 +106,19 @@ class LinkedList[T]:
         Raises:
             EmptyError exception if list is empty
         '''
-        # remember to handle the special case of an empty list (what should the
-        # head and tail pointers be in that case?) and remember to update the
-        # head & tail pointer(s) when appropriate
-        if self._size == 0:
-            raise EmptyError("Cannot popLeft from an empty list")
-
-        value = self._head.data
-
-        if self._head == self._tail:
-            # list of size one when popping, so set both _head and _tail to None
-            self._head = self._tail = None
+        if self._head == None:
+            raise EmptyError("Can't pop from an empty list")
+        
+        pop_data = self._head.data
+        self._head = self._head.next
+        if self._head is not None:
+            self._head.prev = None
         else:
-            # list size > 1, so advance head to next in list
-            self._head = self._head.next
-
+            self._tail = None
+            
         self._size -= 1
-        return value
-    
-
+        return pop_data
+            
     def popRight(self) -> T:
         ''' removes the last Node in the linked list, returning the data item
             inside that Node
@@ -101,55 +127,40 @@ class LinkedList[T]:
         Raises:
             EmptyError exception if list is empty
         '''
-        # Remember to handle the special case of an empty list (what should the
-        # head and tail pointers be in that case?)
-        # 
-        # Note: This one is trickier because you always have to walk (almost)
-        # all the way through the list in order to know what the new tail
-        # should be.
-        #
-        # Remember to update the head & tail pointer(s) when appropriate.
-        if self._size == 0:
-            raise EmptyError("Cannot popRight from an empty list")
-
-        value = self._tail.data
-
-        if self._head == self._tail:
-            # list of size one when popping, so set both _head and _tail to None
-            self._head = self._tail = None
-        else:
-            # list size > 1, so advance head to next in list
-            current_node = self._head
-            while current_node.next != self._tail:
-                current_node = current_node.next
-
-            current_node.next = None
-            self._tail = current_node
+        if self._tail is None:
+            raise EmptyError("Can't pop from an empty list")
         
+        pop_data = self._tail.data
+        self._tail = self._tail.prev
+        
+        if self._tail is not None:
+            self._tail.next = None
+        else:
+            self._head = None
+
         self._size -= 1
-        return value
+        return pop_data
 
     def __str__(self):
-        ''' returns a str representation of the linked list data
+        ''' a str representation of the linked list data
         Returns:
-            an str representation of the linked list, showing head pointer
-                and data tiems
+            str representation of the linked list, showing head and tail
+            pointers and list data items
         '''
-        result = "head->"
-
+        str_ = "head->"
         # start out at the head Node, and walk through Node by Node until we
         # reach the end of the linked list (i.e., the ._next entry is None)
-        ptr = self._head   # temp variable initially w/ same addy as _head
-        while ptr is not None:
-            result += f"[{str(ptr.data)}]->"    # [55]->
-            ptr = ptr.next    # advancing ptr to the next node in the list
-        if self._size > 0:
-            result = result[:-2]  # dump the last -> when non-empty
-        result += "<-tail"
-        return result
+        ptr_ = self._head
+        while ptr_ is not None:
+            str_ += "[" + repr(ptr_.data) + "]<->"   # use of repr will print quotes with strings
+            ptr_ = ptr_.next  # move ptr_ to the next Node in the linked list
 
+        if self._head != None: str_ = str_[:-3]  # remove the last "<->"
+        str_ += "<-tail"
+        return str_
         
-def main():
+###################
+def main() -> None:
     # create a LinkedList and try out some various appends and pops
     print("Creating an empty linked list:")
     ll = LinkedList()
@@ -157,20 +168,20 @@ def main():
     print(f"len(ll) = {len(ll)}")
     print()
 
-    print("appending 55 to the right:")
-    ll.appendRight(55)
+    print("appending 12 to the right:")
+    ll.appendRight(12)
     print(ll)
     print(f"len(ll) = {len(ll)}")
     print()
 
-    print("appending 66 to the right:")
-    ll.appendRight(66)
+    print("appending 24 to the right:")
+    ll.appendRight(24)
     print(ll)
     print(f"len(ll) = {len(ll)}")
     print()
 
-    print("appending 77 to the right:")
-    ll.appendRight(77)
+    print("appending 36 to the right:")
+    ll.appendRight(36)
     print(ll)
     print(f"len(ll) = {len(ll)}")
     print()
@@ -190,34 +201,34 @@ def main():
         print(f"Correctly raised EmptyError: {error}")
 
     print('\nTesting appendLeft')
-    ll.appendLeft(1)
-    ll.appendLeft(45)
-    ll.appendLeft(632)
+    ll.appendLeft(3)
+    ll.appendLeft(21)
+    ll.appendLeft(98)
     print(f'  Actual: {ll}')
-    print(f'Expected: head->[632]->[45]->[1]<-tail')
+    print(f'Expected: head->[98]->[21]->[3]<-tail')
     print(f'  Length: {len(ll)}')
     print(f'Expected: 3')
 
     print('\nTesting popRight')
     value = ll.popRight()
     print(f'  Popped: {value}')
-    print(f'Expected: 1')
+    print(f'Expected: 3')
     print(f'  Actual: {ll}')
-    print(f'Expected: head->[632]->[45]<-tail')
+    print(f'Expected: head->[98]->[21]<-tail')
     print(f'  Length: {len(ll)}')
     print(f'Expected: 2')
 
     value = ll.popRight()
     print(f'  Popped: {value}')
-    print(f'Expected: 45')
+    print(f'Expected: 21')
     print(f'  Actual: {ll}')
-    print(f'Expected: head->[632]<-tail')
+    print(f'Expected: head->[98]<-tail')
     print(f'  Length: {len(ll)}')
     print(f'Expected: 1')
 
     value = ll.popRight()
     print(f'  Popped: {value}')
-    print(f'Expected: 632)')
+    print(f'Expected: 98')
     print(f'  Actual: {ll}')
     print(f'Expected: head-><-tail')
     print(f'  Length: {len(ll)}')
@@ -230,37 +241,73 @@ def main():
         print(f'Correctly raised EmptyError: {error}')
 
     print('\nTesting appendLeft and popLeft mixed')
-    ll.appendLeft(100)
-    ll.appendLeft(200)
-    ll.appendLeft(300)
+    ll.appendLeft(11)
+    ll.appendLeft(22)
+    ll.appendLeft(33)
     print(f'  Actual: {ll}')
-    print(f'Expected: head->[300]->[200]->[100]<-tail')
+    print(f'Expected: head->[33]->[22]->[11]<-tail')
     print(f'  Length: {len(ll)}')
     print(f'Expected: 3')
 
     value = ll.popLeft()
     print(f'Popped left: {value}')
-    print(f'   Expected: 300')
+    print(f'   Expected: 33')
     value = ll.popLeft()
     print(f'Popped left: {value}')
-    print(f'   Expected: 200')
+    print(f'   Expected: 22')
     value = ll.popLeft()
     print(f'Popped left: {value}')
-    print(f'   Expected: 100')
+    print(f'   Expected: 11')
     print(f'  Actual: {ll}')
     print(f'Expected: head-><-tail')
     print(f'  Length: {len(ll)}')
     print(f'Expected: 0')
 
     print('\nTesting mixed appendLeft and appendRight')
-    ll.appendLeft(1)
-    ll.appendRight(2)
-    ll.appendLeft(0)
-    ll.appendRight(3)
+    ll.appendLeft(5)
+    ll.appendRight(10)
+    ll.appendLeft(2)
+    ll.appendRight(15)
     print(f'  Actual: {ll}')
-    print(f'Expected: head->[0]->[1]->[2]->[3]<-tail')
+    print(f'Expected: head->[2]->[5]->[10]->[15]<-tail')
     print(f'  Length: {len(ll)}')
     print(f'Expected: 4')
+
+    print("\nTesting front()")
+    ll.appendRight(10)
+    print(f"Front element: {ll.front()}")
+    print(f"     Expected: 10")
+
+    ll.appendRight(20)
+    print(f"Front element: {ll.front()}")
+    print(f"     Expected: 10")
+
+    ll.appendLeft(5)
+    print(f"  Front element after appendLeft(5): {ll.front()}")
+    print(f"                           Expected: 5")
+
+    print("\nTesting back()")
+    print(f"Back element: {ll.back()}")
+    print(f"    Expected: 20")
+
+    ll.appendRight(30)
+    print(f"  Back element after appendRight(30): {ll.back()}")
+    print(f"                            Expected: 30")
+
+    print("\nTesting front() and back() on an empty list (should raise error)")
+    ll = LinkedList()
+
+    print("Attempting front() on an empty list")
+    try:
+        value = ll.front()
+    except EmptyError as error:
+        print(f"Correctly raised EmptyError: {error}")
+
+    print("Attempting back() on an empty list")
+    try:
+        value = ll.back()
+    except EmptyError as error:
+        print(f"Correctly raised EmptyError: {error}")
 
 if __name__ == "__main__":
     main()
